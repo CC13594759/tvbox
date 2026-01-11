@@ -4634,21 +4634,6 @@ function AdminPageClient() {
             </CollapsibleTab>
           )}
 
-          {/* 站点配置标签 */}
-          <CollapsibleTab
-            title='站点配置'
-            icon={
-              <Settings
-                size={20}
-                className='text-gray-600 dark:text-gray-400'
-              />
-            }
-            isExpanded={expandedTabs.siteConfig}
-            onToggle={() => toggleTab('siteConfig')}
-          >
-            <SiteConfigComponent config={config} refreshConfig={fetchConfig} />
-          </CollapsibleTab>
-
           <div className='space-y-4'>
             {/* 用户配置标签 */}
             <CollapsibleTab
