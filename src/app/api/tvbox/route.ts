@@ -51,66 +51,35 @@ export async function GET(request: NextRequest) {
 
     // 读取当前配置
     const config = await getConfig();
-    
+
     // 从配置中获取源站列表
     const sourceConfigs = config.SourceConfig || [];
-    
+
     if (sourceConfigs.length === 0) {
       return NextResponse.json({ error: '没有配置任何视频源' }, { status: 500 });
     }
 
-    // 过滤掉被禁用的源站和没有API地址的源站
-    const enabledSources = sourceConfigs.filter(source => !source.disabled && source.api && source.api.trim() !== '');
+    // 过滤掉被禁用的源站
+    const enabledSources = sourceConfigs.filter(source => !source.disabled);
 
     // 转换为TVBox格式
     const tvboxConfig: TVBoxConfig = {
       // 基础配置
       spider: '', // 可以根据需要添加爬虫jar包
       wallpaper: `${baseUrl}/logo.png`, // 使用项目Logo作为壁纸
-      
+
       // 影视源配置
-      sites: await Promise.all(enabledSources.map(async (source) => {
+      sites: enabledSources.map((source) => {
         // 智能的type判断逻辑：
         // 1. 如果api地址包含 "/provide/vod" 且不包含 "at/xml"，则认为是JSON类型 (type=1)
         // 2. 如果api地址包含 "at/xml"，则认为是XML类型 (type=0)
         // 3. 如果api地址以 ".json" 结尾，则认为是JSON类型 (type=1)
         // 4. 其他情况默认为JSON类型 (type=1)，因为现在大部分都是JSON
         let type = 1; // 默认为JSON类型
-        
-        if (source.api && typeof source.api === 'string') {
-          const apiLower = source.api.toLowerCase();
-          if (apiLower.includes('at/xml') || apiLower.endsWith('.xml')) {
-            type = 0; // XML类型
-          }
-        }
 
-        // 动态获取源站分类
-        let categories: string[] = ["电影", "电视剧", "综艺", "动漫", "纪录片", "短剧"]; // 默认分类
-
-        try {
-          // 尝试获取源站的分类数据
-          const categoriesUrl = `${source.api}?ac=list`;
-          const controller = new AbortController();
-          const timeoutId = setTimeout(() => controller.abort(), 10000); // 10秒超时
-
-          const response = await fetch(categoriesUrl, {
-            signal: controller.signal,
-            headers: {
-              'User-Agent': 'TVBox/1.0.0'
-            }
-          });
-
-          clearTimeout(timeoutId);
-
-          if (response.ok) {
-            const data = await response.json();
-            if (data.class && Array.isArray(data.class)) {
-              categories = data.class.map((cat: any) => cat.type_name || cat.name).filter((name: string) => name);
-            }
-          }
-        } catch (error) {
-          // 获取分类失败时使用默认分类
-          console.warn(`获取源站 ${source.name} 分类失败，使用默认分类:`, error);
+        const apiLower = source.api.toLowerCase();
+        if (apiLower.includes('at/xml') || apiLower.endsWith('.xml')) {
+          type = 0; // XML类型
         }
 
         return {
@@ -123,9 +92,11 @@ export async function GET(request: NextRequest) {
           filterable: 1, // 支持分类筛选
           ext: source.detail || '', // 详情页地址作为扩展参数
           timeout: 30, // 30秒超时
-          categories: categories // 使用动态获取的分类
+          categories: [
+            "电影", "电视剧", "综艺", "动漫", "纪录片", "短剧"
+          ]
         };
-      })),
+      }),
 
       // 解析源配置（添加一些常用的解析源）
       parses: [
@@ -136,7 +107,7 @@ export async function GET(request: NextRequest) {
         },
         {
           name: "Json轮询",
-          type: 2, 
+          type: 2,
           url: "Sequence"
         },
         {
@@ -151,7 +122,7 @@ export async function GET(request: NextRequest) {
 
       // 播放标识
       flags: [
-        "youku", "qq", "iqiyi", "qiyi", "letv", "sohu", "tudou", "pptv", 
+        "youku", "qq", "iqiyi", "qiyi", "letv", "sohu", "tudou", "pptv",
         "mgtv", "wasu", "bilibili", "le", "duoduozy", "renrenmi", "xigua",
         "优酷", "腾讯", "爱奇艺", "奇艺", "乐视", "搜狐", "土豆", "PPTV",
         "芒果", "华数", "哔哩", "1905"
@@ -171,7 +142,7 @@ export async function GET(request: NextRequest) {
       // 广告过滤规则
       ads: [
         "mimg.0c1q0l.cn",
-        "www.googletagmanager.com", 
+        "www.googletagmanager.com",
         "www.google-analytics.com",
         "mc.usihnbcq.cn",
         "mg.g1mm3d.cn",
@@ -234,14 +205,14 @@ export async function GET(request: NextRequest) {
       // 返回base64编码的配置（TVBox常用格式）
       const configStr = JSON.stringify(tvboxConfig, null, 2);
       const base64Config = Buffer.from(configStr).toString('base64');
-      
+
       return new NextResponse(base64Config, {
         headers: {
           'Content-Type': 'text/plain; charset=utf-8',
           'Access-Control-Allow-Origin': '*',
           'Access-Control-Allow-Methods': 'GET',
           'Access-Control-Allow-Headers': 'Content-Type',
-          'Cache-Control': 'public, max-age=3600'
+          'Cache-Control': 'no-cache, no-store, must-revalidate'
         }
       });
     } else {
@@ -251,7 +222,7 @@ export async function GET(request: NextRequest) {
           'Access-Control-Allow-Origin': '*',
           'Access-Control-Allow-Methods': 'GET',
           'Access-Control-Allow-Headers': 'Content-Type',
-          'Cache-Control': 'public, max-age=3600'
+          'Cache-Control': 'no-cache, no-store, must-revalidate'
         }
       });
     }
