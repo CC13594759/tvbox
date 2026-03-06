@@ -58,7 +58,7 @@ docker run -d \
 --restart always \
 --no-healthcheck \
 -e TZ=Asia/Shanghai \
-apache/kvrocks
+apache/kvrocks:nightly-20240504-02ff978
 
 tvbox 容器
 
